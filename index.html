@@ -3,50 +3,67 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>حضور تعليم الكبار</title>
-<meta name="apple-mobile-web-app-title" content="حضور تعليم الكبار">
+<title>تطبيق الحضور</title>
+<meta name="apple-mobile-web-app-title" content="تطبيق الحضور">
 <meta name="theme-color" content="#0F5D45">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<style>
-  html, body { margin: 0; height: 100%; background: #F3F6F4; overflow: hidden; }
-  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
-  .msg { font: 17px/1.8 -apple-system, system-ui, "Segoe UI", Tahoma, sans-serif; color: #14261F; padding: 48px 24px; text-align: center; }
-</style>
-</head>
-<body>
-<iframe id="app" title="حضور تعليم الكبار" allow="geolocation"></iframe>
 <script>
-/* الصفحة الأمامية لتطبيق حضور تعليم الكبار: تحمل شعار السلطنة أيقونةً للآيفون، وتعرض التطبيق داخلها.
-   الرابط: ?a=<معرّف نشر التطبيق>&p=remote — ويُضاف إليه مفتاح التفعيل تلقائيًا بعد التفعيل. لا يلزم تعديل هذا الملف. */
+/* مُشغِّل أيقونة نظام الحضور (شعار السلطنة):
+   - يُفتح من أيقونة الشاشة الرئيسية فينتقل فورًا إلى التطبيق الأصلي على Google (لا يعرضه داخله، فلا يتأثر تحديد الموقع).
+   - ?a=<معرّف نشر التطبيق>  &k=<مفتاح المعلم أو المعلمة>  أو  &page=admin  ،  &n=<اسم الأيقونة>  ،  &add=1 لصفحة الإضافة.
+   لا يلزم تعديل هذا الملف. */
 (function () {
   var q = new URLSearchParams(location.search);
   var a = (q.get('a') || '').replace(/[^A-Za-z0-9_-]/g, '');
-  function store(name, v) {
-    try {
-      if (v === undefined) return localStorage.getItem(name);
-      if (v) localStorage.setItem(name, v); else localStorage.removeItem(name);
-    } catch (e) { return null; }
-  }
-  if (!a) { document.body.innerHTML = '<div class="msg">الرابط غير مكتمل. افتح الرابط الذي أرسله المشرف كما هو.</div>'; return; }
-  var K = 'att_key_' + a;
-  var key = (q.get('k') || '').replace(/[^A-Za-z0-9]/g, '') || store(K) || '';
-  function keep(k) {
-    var u = new URL(location.href);
-    if (k) u.searchParams.set('k', k); else u.searchParams.delete('k');
-    history.replaceState(null, '', u.toString());
-  }
-  document.getElementById('app').src = 'https://script.google.com/macros/s/' + a + '/exec?p=remote' + (key ? '&k=' + key : '');
-  if (key) { store(K, key); keep(key); }
-  window.addEventListener('message', function (e) {
-    if (!/^https:\/\/([a-z0-9-]+\.)*(google\.com|googleusercontent\.com)$/.test(e.origin)) return;
-    var d = e.data;
-    if (!d || typeof d.attKey !== 'string') return;
-    var k = d.attKey.replace(/[^A-Za-z0-9]/g, '');
-    store(K, k);
-    keep(k);
-  });
+  var k = (q.get('k') || '').replace(/[^A-Za-z0-9]/g, '');
+  var admin = q.get('page') === 'admin', remote = q.get('p') === 'remote';
+  var name = (q.get('n') || (admin ? 'لوحة المشرف' : remote ? 'حضور تعليم الكبار' : 'حضور محو الأمية')).replace(/[<>"]/g, '').slice(0, 30);
+  document.title = name;
+  document.querySelector('meta[name=apple-mobile-web-app-title]').setAttribute('content', name);
+  if (!a) { window.__BAD = true; return; }
+  var qs = admin ? ['page=admin'] : [remote ? 'p=remote' : '', k ? 'k=' + k : ''].filter(Boolean);
+  var target = 'https://script.google.com/macros/s/' + a + '/exec' + (qs.length ? '?' + qs.join('&') : '');
+  if (q.get('add') !== '1') { location.replace(target); return; }          // من الأيقونة: إلى التطبيق مباشرة
+  q.delete('add');                                                          // يُحفظ على الشاشة الرئيسية رابط التشغيل لا رابط الإضافة
+  history.replaceState(null, '', location.pathname + '?' + q.toString());
+  var ua = navigator.userAgent || '';
+  window.__ADD = { name: name, target: target, admin: admin,
+    ios: /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+    android: /Android/i.test(ua), inApp: /WhatsApp|FBAN|FBAV|Instagram|Line\//i.test(ua) };
+})();
+</script>
+<style>
+  :root { color-scheme: light; }
+  html, body { margin: 0; min-height: 100%; background: #F3F6F4; color: #14261F; font: 17px/1.75 -apple-system, system-ui, "Segoe UI", Tahoma, sans-serif; }
+  .wrap { max-width: 440px; margin: 0 auto; padding: max(28px, env(safe-area-inset-top)) 22px 40px; text-align: center; }
+  .ic { width: 104px; height: 104px; border-radius: 24px; box-shadow: 0 6px 22px rgba(15, 93, 69, .28); }
+  h1 { font-size: 23px; color: #0F5D45; margin: 16px 0 4px; }
+  .sub { color: #5B6E66; margin: 0 0 18px; }
+  ol { text-align: right; background: #fff; border: 1.5px solid #D7E0DB; border-radius: 16px; padding: 14px 40px 14px 16px; margin: 0 0 14px; }
+  li { margin: 6px 0; } b { color: #0F5D45; }
+  .warn { background: #FFF4E5; border: 1.5px solid #F2C38A; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; font-size: 15.5px; }
+  .note { color: #5B6E66; font-size: 15px; margin: 0 0 18px; }
+  .btn { display: block; width: 100%; border: 0; border-radius: 14px; padding: 14px; font: inherit; font-weight: 700; background: #0F5D45; color: #fff; text-decoration: none; }
+  .splash { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #5B6E66; }
+</style>
+</head>
+<body>
+<div class="wrap" id="root"><div class="splash"><img class="ic" src="apple-touch-icon.png" alt=""><div>جارٍ فتح التطبيق…</div></div></div>
+<script>
+(function () {
+  var root = document.getElementById('root'), A = window.__ADD;
+  if (window.__BAD) { root.innerHTML = '<div class="splash"><img class="ic" src="apple-touch-icon.png" alt=""><div>الرابط غير مكتمل. افتحه من التطبيق كما هو.</div></div>'; return; }
+  if (!A) return;                                                           // يجري الانتقال إلى التطبيق
+  var ios = '<ol><li>زر <b>المشاركة</b> أسفل الشاشة (مربع يخرج منه سهم).</li><li>ثم <b>«إضافة إلى الشاشة الرئيسية»</b>.</li><li>ثم <b>«إضافة»</b>.</li></ol>';
+  var and = '<ol><li>زر <b>القائمة ⋮</b> أعلى الشاشة.</li><li>ثم <b>«إضافة إلى الشاشة الرئيسية»</b>.</li><li>ثم <b>«إضافة»</b>.</li></ol>';
+  root.innerHTML = '<img class="ic" src="apple-touch-icon.png" alt="أيقونة التطبيق">' +
+    '<h1>' + A.name + '</h1><p class="sub">إضافة الأيقونة بشعار السلطنة إلى الشاشة الرئيسية</p>' +
+    (A.inApp ? '<div class="warn">هذه الصفحة مفتوحة داخل تطبيق آخر. افتحها في ' + (A.ios ? 'Safari' : 'Chrome') + ' أولًا.</div>' : '') +
+    (A.android && !A.ios ? and : A.ios ? ios : ios + and) +
+    '<p class="note">بعدها يُفتح التطبيق من الأيقونة الجديدة كما هو تمامًا، ويمكن حذف الأيقونة القديمة.</p>' +
+    '<a class="btn" href="' + A.target + '">فتح التطبيق الآن</a>';
 })();
 </script>
 </body>
